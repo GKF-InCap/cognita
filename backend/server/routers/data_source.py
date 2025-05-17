@@ -2,7 +2,7 @@ import os
 import shutil
 from urllib.parse import unquote
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 from truefoundry.ml import get_client as get_tfy_client
 
@@ -12,12 +12,15 @@ from backend.modules.metadata_store.base import BaseMetadataStore
 from backend.modules.metadata_store.client import get_client
 from backend.settings import settings
 from backend.types import CreateDataSource
+from backend.server.auth import hasura_jwt_auth
 
 router = APIRouter(prefix="/v1/data_source", tags=["data_source"])
 
 
 @router.get("")
-async def get_data_source():
+async def get_data_source(
+    user_claims=Depends(hasura_jwt_auth),
+):
     """Get data sources"""
     metadata_store_client: BaseMetadataStore = await get_client()
     data_sources = await metadata_store_client.aget_data_sources()
@@ -27,7 +30,9 @@ async def get_data_source():
 
 
 @router.get("/list")
-async def list_data_sources():
+async def list_data_sources(
+    user_claims=Depends(hasura_jwt_auth),
+):
     """Get data sources"""
     metadata_store_client: BaseMetadataStore = await get_client()
     data_sources = await metadata_store_client.alist_data_sources()
@@ -35,7 +40,10 @@ async def list_data_sources():
 
 
 @router.post("")
-async def add_data_source(data_source: CreateDataSource):
+async def add_data_source(
+    data_source: CreateDataSource,
+    user_claims=Depends(hasura_jwt_auth),
+):
     """Create a data source for the given collection"""
     metadata_store_client: BaseMetadataStore = await get_client()
     # Validate URI before creating the data source
@@ -63,6 +71,7 @@ async def add_data_source(data_source: CreateDataSource):
 @router.delete("/delete")
 async def delete_data_source(
     data_source_fqn: str,
+    user_claims=Depends(hasura_jwt_auth),
 ):
     """Delete a data source"""
     metadata_store_client: BaseMetadataStore = await get_client()

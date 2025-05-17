@@ -4,7 +4,7 @@ import uuid
 from types import SimpleNamespace
 from typing import List, Optional
 
-from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile, Depends
 from fastapi.responses import JSONResponse
 from truefoundry.ml import DataDirectory
 from truefoundry.ml import get_client as get_tfy_client
@@ -16,6 +16,7 @@ from backend.server.routers.data_source import add_data_source
 from backend.settings import settings
 from backend.types import CreateDataSource, ModelType, UploadToDataDirectoryDto
 from backend.utils import _get_read_signed_url
+from backend.server.auth import hasura_jwt_auth
 
 router = APIRouter(prefix="/v1/internal", tags=["internal"])
 
@@ -26,6 +27,7 @@ async def upload_to_docker_directory(
         default_factory=lambda: str(uuid.uuid4()), regex=r"^[a-z][a-z0-9-]*$"
     ),
     files: List[UploadFile] = File(...),
+    user_claims=Depends(hasura_jwt_auth),
 ):
     """This function uploads files within `settings.LOCAL_DATA_DIRECTORY` given by the name req.upload_name"""
     if not settings.LOCAL:
@@ -78,7 +80,10 @@ async def upload_to_docker_directory(
 
 
 @router.post("/upload-to-data-directory")
-async def upload_to_data_directory(req: UploadToDataDirectoryDto):
+async def upload_to_data_directory(
+    req: UploadToDataDirectoryDto,
+    user_claims=Depends(hasura_jwt_auth),
+):
     # Log into TrueFoundry
     tfy_client = get_tfy_client()
     # Create a new data directory.
@@ -104,6 +109,7 @@ async def upload_to_data_directory(req: UploadToDataDirectoryDto):
 @router.get("/models")
 def get_enabled_models(
     model_type: Optional[ModelType] = Query(default=None),
+    user_claims=Depends(hasura_jwt_auth),
 ):
     if model_type == ModelType.embedding:
         enabled_models = model_gateway.get_embedding_models()
@@ -127,6 +133,7 @@ def get_enabled_models(
 @router.get("/get_signed_url")
 def get_signed_url(
     data_point_fqn: str = Query(...),
+    user_claims=Depends(hasura_jwt_auth),
 ):
     """
     Enrich the metadata with the signed url

@@ -1,4 +1,4 @@
-from fastapi import Body
+from fastapi import Body, Depends
 from fastapi.responses import StreamingResponse
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnableParallel, RunnablePassthrough
@@ -11,6 +11,7 @@ from backend.modules.query_controllers.example.payload import (
 )
 from backend.modules.query_controllers.example.types import ExampleQueryInput
 from backend.server.decorators import post, query_controller
+from backend.server.auth import hasura_jwt_auth
 
 EXAMPLES = {
     "vector-store-similarity": QUERY_WITH_VECTOR_STORE_RETRIEVER_PAYLOAD,
@@ -27,6 +28,7 @@ class BasicRAGQueryController(BaseQueryController):
         request: ExampleQueryInput = Body(
             openapi_examples=EXAMPLES,
         ),
+        user_claims=Depends(hasura_jwt_auth),
     ):
         """
         Sample answer method to answer the question using the context from the collection

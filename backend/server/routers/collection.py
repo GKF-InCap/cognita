@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Path, Request
+from fastapi import APIRouter, HTTPException, Path, Request, Depends
 from fastapi.responses import JSONResponse
 
 from backend.indexer.indexer import ingest_data as ingest_data_to_collection
@@ -16,12 +16,13 @@ from backend.types import (
     ListDataIngestionRunsDto,
     UnassociateDataSourceWithCollectionDto,
 )
+from backend.server.auth import hasura_jwt_auth
 
 router = APIRouter(prefix="/v1/collections", tags=["collections"])
 
 
 @router.get("")
-async def get_collections():
+async def get_collections(user_claims=Depends(hasura_jwt_auth)):
     """API to list all collections with details"""
     logger.debug("Listing all the collections...")
     metadata_store_client = await get_client()
@@ -34,14 +35,17 @@ async def get_collections():
 
 
 @router.get("/list")
-async def list_collections():
+async def list_collections(user_claims=Depends(hasura_jwt_auth)):
     metadata_store_client = await get_client()
     collections = await metadata_store_client.alist_collections()
     return JSONResponse(content={"collections": collections})
 
 
 @router.get("/{collection_name}")
-async def get_collection_by_name(collection_name: str = Path(title="Collection name")):
+async def get_collection_by_name(
+    user_claims=Depends(hasura_jwt_auth),
+    collection_name: str = Path(title="Collection name"),
+):
     """Get the collection config given its name"""
     metadata_store_client = await get_client()
     collection = await metadata_store_client.aget_collection_by_name(collection_name)
@@ -52,7 +56,7 @@ async def get_collection_by_name(collection_name: str = Path(title="Collection n
 
 @router.post("")
 async def create_collection(
-    collection: CreateCollectionDto,
+    collection: CreateCollectionDto, user_claims=Depends(hasura_jwt_auth)
 ):
     """API to create a collection"""
     logger.info(f"Creating collection {collection.name}...")
@@ -96,7 +100,7 @@ async def create_collection(
 
 @router.post("/associate_data_source")
 async def associate_data_source_to_collection(
-    request: AssociateDataSourceWithCollectionDto,
+    request: AssociateDataSourceWithCollectionDto, user_claims=Depends(hasura_jwt_auth)
 ):
     """Add a data source to the collection"""
     metadata_store_client = await get_client()
@@ -115,6 +119,7 @@ async def associate_data_source_to_collection(
 @router.post("/unassociate_data_source")
 async def unassociate_data_source_from_collection(
     request: UnassociateDataSourceWithCollectionDto,
+    user_claims=Depends(hasura_jwt_auth),
 ):
     """Remove a data source to the collection"""
     metadata_store_client = await get_client()
@@ -127,7 +132,9 @@ async def unassociate_data_source_from_collection(
 
 @router.post("/ingest")
 async def ingest_data(
-    ingest_data_to_collection_dto: IngestDataToCollectionDto, request: Request
+    ingest_data_to_collection_dto: IngestDataToCollectionDto,
+    request: Request,
+    user_claims=Depends(hasura_jwt_auth),
 ):
     """Ingest data into the collection"""
     try:
@@ -140,7 +147,10 @@ async def ingest_data(
 
 
 @router.delete("/{collection_name}")
-async def delete_collection(collection_name: str = Path(title="Collection name")):
+async def delete_collection(
+    collection_name: str = Path(title="Collection name"),
+    user_claims=Depends(hasura_jwt_auth),
+):
     """Delete collection given its name"""
     metadata_store_client: BaseMetadataStore = await get_client()
     await metadata_store_client.adelete_collection(collection_name, include_runs=True)
@@ -149,7 +159,10 @@ async def delete_collection(collection_name: str = Path(title="Collection name")
 
 
 @router.post("/data_ingestion_runs/list")
-async def list_data_ingestion_runs(request: ListDataIngestionRunsDto):
+async def list_data_ingestion_runs(
+    request: ListDataIngestionRunsDto,
+    user_claims=Depends(hasura_jwt_auth),
+):
     metadata_store_client: BaseMetadataStore = await get_client()
     data_ingestion_runs = await metadata_store_client.aget_data_ingestion_runs(
         request.collection_name, request.data_source_fqn
@@ -164,6 +177,7 @@ async def list_data_ingestion_runs(request: ListDataIngestionRunsDto):
 @router.get("/data_ingestion_runs/{data_ingestion_run_name}/status")
 async def get_collection_status(
     data_ingestion_run_name: str = Path(title="Data Ingestion Run name"),
+    user_claims=Depends(hasura_jwt_auth),
 ):
     """Get status for given data ingestion run"""
     metadata_store_client: BaseMetadataStore = await get_client()

@@ -1,7 +1,7 @@
 import asyncio
 
 import async_timeout
-from fastapi import Body, HTTPException
+from fastapi import Body, HTTPException, Depends
 from fastapi.responses import StreamingResponse
 from langchain_core.messages import HumanMessage
 from langchain_core.runnables import RunnableParallel, RunnablePassthrough
@@ -17,6 +17,7 @@ from backend.modules.query_controllers.multimodal.payload import (
 from backend.modules.query_controllers.multimodal.types import MultiModalQueryInput
 from backend.modules.query_controllers.types import GENERATION_TIMEOUT_SEC, Answer, Docs
 from backend.server.decorators import post, query_controller
+from backend.server.auth import hasura_jwt_auth
 
 EXAMPLES = {
     "vector-store-similarity": QUERY_WITH_VECTOR_STORE_RETRIEVER_PAYLOAD,
@@ -62,6 +63,7 @@ class MultiModalRAGQueryController(BaseQueryController):
         request: MultiModalQueryInput = Body(
             openapi_examples=EXAMPLES,
         ),
+        user_claims=Depends(hasura_jwt_auth),
     ):
         """
         Sample answer method to answer the question using the context from the collection
